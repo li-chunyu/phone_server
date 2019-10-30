@@ -84,7 +84,15 @@ int SynwayAudioCard::call(int ch, std::string phone_num) {
     return -1;
   }
 
-  // connection handle;
+  // connection handle already exist;
+  if (event_loop_flag){
+    SsmHangup(ch);
+    std::cout << "On connection running" << std::endl;
+    return -1;
+  }
+  if (sp_connection_handle_thread.get() != nullptr)
+    sp_connection_handle_thread->join(); 
+
   sp_connection_handle_thread.reset(
     new std::thread(&SynwayAudioCard::connection_handle,
     this,
@@ -150,6 +158,7 @@ void SynwayAudioCard::ch_state_change_handler(int ch, int ch_state) {
             printf("Unkown state number: %d\n", ch_state);
             SsmStopRecordMemBlock(ch);
             SsmHangup(ch);
+            close_callback();
             event_loop_flag = false;
             break;
     }
@@ -173,12 +182,10 @@ int SynwayAudioCard::recordMemBlockHandler(int ch, int nEndReason, LPBYTE pucBuf
     if (pucBuf == p_card->buf1) {
         p_card->send_callback(p_card->buf1, p_card->buf_size);
         resualt = SsmRecordMemBlock(ch, -2, p_card->buf1, p_card->buf_size, SynwayAudioCard::recordMemBlockHandler, p_card);
-        printf("send buf1\n");
     }
     if (pucBuf == p_card->buf2) {
         p_card->send_callback(p_card->buf2, p_card->buf_size);
         resualt = SsmRecordMemBlock(ch, -2, p_card->buf2, p_card->buf_size, SynwayAudioCard::recordMemBlockHandler, p_card);
-        printf("send buf2\n");
     }
     return resualt;
 }
