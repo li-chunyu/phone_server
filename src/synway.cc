@@ -104,7 +104,6 @@ int SynwayAudioCard::channel_states(int ch) {
 }
 
 void SynwayAudioCard::connection_handle(int ch) {
-    // establish websocket connection.
     MESSAGE_INFO event;
     event_loop_flag = true;
     std::cout << "SynwayAudioCard::connection_handle" << std::endl;
@@ -139,8 +138,6 @@ void SynwayAudioCard::ch_state_change_handler(int ch, int ch_state) {
             ch_talking_state_handler(ch);
             break;
         case S_CALL_PENDING: // 通道挂起状态
-            //ch_pending_handler(ch);
-            // TODO:加一个 close ws callback
             pending_reason = SsmGetPendingReason(ch);
             std::cout << "channel pending, ch" << ch << " reason:" << pending_reason << std::endl;
             SsmStopRecordMemBlock(ch);
@@ -174,8 +171,6 @@ int SynwayAudioCard::recordMemBlockHandler(int ch, int nEndReason, LPBYTE pucBuf
         return 0;
     }
     if (pucBuf == p_card->buf1) {
-        // pobj->spws->send(pucBuf, 1600);
-        //p_card->spws->send(pobj->get_connection_id(), reinterpret_cast<void *>(pucBuf), 1600);
         p_card->send_callback(p_card->buf1, p_card->buf_size);
         resualt = SsmRecordMemBlock(ch, -2, p_card->buf1, p_card->buf_size, SynwayAudioCard::recordMemBlockHandler, p_card);
         printf("send buf1\n");
