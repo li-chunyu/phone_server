@@ -1,0 +1,10 @@
+*
+
+!.gitignore
+
+!src/
+!src/**/
+
+!*.cc
+!*.h
+!*.py
