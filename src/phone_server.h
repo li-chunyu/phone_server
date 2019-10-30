@@ -14,8 +14,7 @@ public:
   void send(LPBYTE, size_t);
   void on_call();
   void close();
-  
-  bool con_state;
+  void tear_down();
 private:
   std::unique_ptr<SynwayAudioCard> up_audio_card;
 };

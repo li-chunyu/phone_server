@@ -19,6 +19,7 @@ public:
   void hangup(int ch);
   int channel_states(int ch);
   int buffer_size();
+  int tear_down();
   ~SynwayAudioCard();
 
 private:

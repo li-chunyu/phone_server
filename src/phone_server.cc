@@ -17,13 +17,20 @@ void PhoneServer::send(LPBYTE p_bytes, size_t len) {
 
 void PhoneServer::on_call() {
   if (up_audio_card->call(6, "018043365315") == 0) {
-    con_state = true;
+    std::cout << "PhoneServer::on_call:  succ" << std::endl;
   } else {
-    con_state = false;
+    std::cout << "PhoneServer::on_call:  fail" << std::endl;
   }
 }
 
 void PhoneServer::close() {
-  con_state = false;
   std::cout << "phone server close." << std::endl;
+}
+
+void PhoneServer::tear_down() {
+  if (up_audio_card->tear_down() != 0) {
+    std::cout << "audio card tear down failed";
+  }
+  // release audio card;
+  up_audio_card.reset();
 }

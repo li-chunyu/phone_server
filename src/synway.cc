@@ -27,11 +27,17 @@ SynwayAudioCard::SynwayAudioCard() {
 }
 
 SynwayAudioCard::~SynwayAudioCard() {
+  SsmCloseCti();
+}
+
+int SynwayAudioCard::tear_down() {
   free(buf1);
   free(buf2);
   event_loop_flag = false;
+  std::cout << "SynwayAudioCard::tear down 1" << std::endl;
   sp_connection_handle_thread->join();
-  SsmCloseCti();
+  std::cout << "sp_connection_handle_thread->join();" << std::endl;
+  return 0;
 }
 
 int SynwayAudioCard::init_card() {
@@ -39,6 +45,10 @@ int SynwayAudioCard::init_card() {
     std::cout << audio_card_error() << std::endl;
     return -1;
   }
+  // Set audio card to event polling mode.
+  EVENT_SET_INFO event_mode;
+  event_mode.dwWorkMode = EVENT_POLLING;
+  SsmSetEvent(0xffff, -1, 1, &event_mode);
   return 0;
 }
 
@@ -66,6 +76,7 @@ int SynwayAudioCard::call(int ch, std::string phone_num) {
     std::cout << "SsmStartPickupAnalyze faild" << std::endl;
     return -1;
   }
+  SsmSetCalleeHookDetectP(ch, 20, 48);
 
   if (SsmAutoDial(ch, phone_num.c_str()) == -1) {
     std::cout << audio_card_error() << std::endl;
@@ -83,6 +94,8 @@ int SynwayAudioCard::call(int ch, std::string phone_num) {
 }
 
 void SynwayAudioCard::hangup(int ch) {
+  SsmStopRecordMemBlock(ch);
+  SsmHangup(ch);
   return;
 }
 
@@ -94,21 +107,25 @@ void SynwayAudioCard::connection_handle(int ch) {
     // establish websocket connection.
     MESSAGE_INFO event;
     event_loop_flag = true;
-    printf("on connection_handle\n");
+    std::cout << "SynwayAudioCard::connection_handle" << std::endl;
+    int res = -1;
     while (event_loop_flag) {
         std::memset(&event, 0, sizeof(PMESSAGE_INFO));
-        if (SsmWaitForEvent(50, &event) == 0) {
-            switch(event.wEventCode) {
-                case E_CHG_ChState:
-                    ch_state_change_handler(ch ,SsmGetChState(ch));
-                    break;
-            }
+        if ((res = SsmWaitForEvent(50, &event)) == 0) {
+          switch(event.wEventCode) {
+              case E_CHG_ChState:
+                  ch_state_change_handler(ch ,SsmGetChState(ch));
+                  break;
+              default:
+                break;
+          }
         }
     }
     printf("exit connection_handle\n");
 }
 
 void SynwayAudioCard::ch_state_change_handler(int ch, int ch_state) {
+    int pending_reason = -1;
     switch (ch_state) {
         case S_CALL_STANDBY:
         case S_CALL_PICKUPED:
@@ -124,14 +141,18 @@ void SynwayAudioCard::ch_state_change_handler(int ch, int ch_state) {
         case S_CALL_PENDING: // 通道挂起状态
             //ch_pending_handler(ch);
             // TODO:加一个 close ws callback
-            printf("ch: %d, pending\n", ch);
+            pending_reason = SsmGetPendingReason(ch);
+            std::cout << "channel pending, ch" << ch << " reason:" << pending_reason << std::endl;
             SsmStopRecordMemBlock(ch);
             SsmHangup(ch);
             close_callback();
+            std::cout << "Call pending." << std::endl;
             event_loop_flag = false;
             break;
         default:
             printf("Unkown state number: %d\n", ch_state);
+            SsmStopRecordMemBlock(ch);
+            SsmHangup(ch);
             event_loop_flag = false;
             break;
     }
