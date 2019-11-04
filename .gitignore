@@ -7,6 +7,8 @@
 !src/
 !src/**/
 
+!Makefile
+
 !*.cc
 !*.h
 !*.py
